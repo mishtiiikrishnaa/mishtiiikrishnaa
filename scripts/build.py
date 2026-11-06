@@ -25,11 +25,6 @@ IST = dt.timezone(dt.timedelta(hours=5, minutes=30), "IST")  # no dst, so a fixe
 LOCAL = NOW.astimezone(IST)
 TODAY = LOCAL.date()  # "today" means today in india, not in greenwich
 
-# ---- things github cannot tell us; edit freely, keep them true ------------
-SYSTEM = [
-    ("os", "macos"),
-]
-
 # ---- ghostty palette (from the real config) -------------------------------
 BG, BORDER = "#0f0f12", "#2a2a2f"
 FG, DIM = "#e8e8ed", "#7d7d88"
@@ -171,22 +166,21 @@ handle = clean(USER) + "@github"  # the full username; "mish" lives in the ascii
 blog = user.get("blog") or ""
 orcid = blog.split("orcid.org/")[-1] if "orcid.org/" in blog else None
 
-LOGO = {
-    "m": [r"           ", r" _ __ ___  ", r"| '_ ` _ \ ", r"| | | | | |", r"|_| |_| |_|"],
-    "i": [r" _ ", r"(_)", r"| |", r"| |", r"|_|"],
-    "s": [r"     ", r" ___ ", r"/ __|", r"\__ \ ", r"|___/"],
-    "h": [r" _     ", r"| |__  ", r"| '_ \ ", r"| | | |", r"|_| |_|"],
-}
+# the figure: a punched card, as in the jacquard loom ada wrote about in the quote below.
+# every row is one letter of CARD_TEXT in 8-bit ascii, o = hole, . = no hole. so it spells
+# something if you can read binary. change the text (max ~6 letters) to change the card.
+CARD_TEXT = "mish"
+RAINBOW = [PINK, PEACH, BUTTER, MINT, AQUA, SKY, LILAC]
+ART_LH = 22  # row spacing of the figure, px
 
 
-def logo_rows():
-    rows = [""] * 5
-    for ch in "mish":
-        g = LOGO[ch]
-        w = max(map(len, g))
-        for i in range(5):
-            rows[i] += g[i].ljust(w)
-    return rows
+def card_rows(text=CARD_TEXT):
+    rows = ["  ".join("o" if bit == "1" else "." for bit in format(ord(c), "08b")) for c in text]
+    inner = max(map(len, rows)) + 2
+    art = [" " + "_" * inner + " ", "/" + " " * inner + "|"]
+    art += ["| " + r.ljust(inner - 1) + "|" for r in rows]
+    art.append("|" + "_" * inner + "|")
+    return art
 
 
 # ------------------------------------------------------------------ svg
@@ -300,15 +294,17 @@ def build_svg():
     body_t = t[0]
 
     # left: logo
-    for i, row in enumerate(logo_rows()):
+    art = card_rows()
+    for i, row in enumerate(art):
+        col = RAINBOW[round(i * (len(RAINBOW) - 1) / max(len(art) - 1, 1))]
         out.append(
-            f'<text x="40" y="{top + 12 + i * 24}" fill="{[PINK, PEACH, BUTTER, MINT, SKY][i]}" class="l" '
+            f'<text x="40" y="{top + 12 + i * ART_LH}" fill="{col}" class="l" '
             f'style="animation-delay:{body_t:.2f}s;font-size:19px" '
             f'xml:space="preserve">{esc(row)}</text>'
         )
 
     # left: push heatmap (13 weeks, sunday first, like github)
-    hy = top + 12 + 5 * 24 + 22
+    hy = top + 12 + len(art) * ART_LH + 22
     text(40, hy, [("pushes, last 13 weeks", DIM)], body_t)
     today = TODAY
     start = today - dt.timedelta(days=(today.weekday() + 1) % 7) - dt.timedelta(weeks=12)
@@ -351,9 +347,12 @@ def build_svg():
     y += LH
     text(X, y, [("-" * len(handle), DIM)], d)
     y += LH
-    host = clip(user.get("bio") or "student", 56)
-    group1 = list(SYSTEM) + [("host", host), ("uptime", span(user["created_at"])),
-                             ("packages", f"{len(repos)} repos")]
+    # nothing about the actual machine: "os" is whatever the profile bio says you are
+    # (so edit your bio on github to change it), "host" is where the card lives.
+    group1 = [("os", clip(user.get("bio") or "student", 56)),
+              ("host", clip(f"github.com/{USER}", 40)),
+              ("uptime", span(user["created_at"])),
+              ("packages", f"{len(repos)} repos")]
     group1.append(("cpu", ", ".join(n.lower() for n, _ in top_langs[:4]) or "-"))
     group1.append(("disk", f"{disk_kb / 1024:.1f} mb" if disk_kb >= 1024 else f"{disk_kb} kb"))
     if user.get("location"):
