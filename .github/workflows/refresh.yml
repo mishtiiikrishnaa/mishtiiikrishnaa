@@ -2,7 +2,7 @@ name: refresh
 
 on:
   schedule:
-    - cron: "49 * * * *" # every hour at :17 (off the :00 stampede, so runs are less likely to be delayed)
+    - cron: "19 * * * *" # every hour at :19 utc (off the :00 stampede); the card shows ist, so it reads :49
   workflow_dispatch:
   push:
     branches: [main]
@@ -34,6 +34,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_USER: ${{ github.repository_owner }}
+          # optional: only create this secret if the card's contribution total comes out lower than your profile's
+          CARD_TOKEN: ${{ secrets.CARD_TOKEN }}
 
       - name: commit if anything changed
         run: |
