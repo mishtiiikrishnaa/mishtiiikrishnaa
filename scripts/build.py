@@ -21,13 +21,13 @@ TOKEN = os.environ.get("GITHUB_TOKEN")
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 NOW = dt.datetime.now(dt.timezone.utc)
+IST = dt.timezone(dt.timedelta(hours=5, minutes=30), "IST")  # no dst, so a fixed offset is exact
+LOCAL = NOW.astimezone(IST)
+TODAY = LOCAL.date()  # "today" means today in india, not in greenwich
 
 # ---- things github cannot tell us; edit freely, keep them true ------------
 SYSTEM = [
     ("os", "macos"),
-    ("shell", "zsh"),
-    ("terminal", "ghostty"),
-    ("font", "cmu typewriter text"),
 ]
 
 # ---- ghostty palette (from the real config) -------------------------------
@@ -126,8 +126,23 @@ for page in (1, 2, 3):
     if not chunk:
         break
     events += chunk
-push_by_day = Counter(parse(e["created_at"]).date() for e in events if e["type"] == "PushEvent")
-pushes_14d = sum(push_by_day.get(NOW.date() - dt.timedelta(days=i), 0) for i in range(14))
+push_by_day = Counter(parse(e["created_at"]).astimezone(IST).date() for e in events if e["type"] == "PushEvent")
+pushes_14d = sum(push_by_day.get(TODAY - dt.timedelta(days=i), 0) for i in range(14))
+
+# current streak: consecutive days with a push. if nothing yet today, count back from yesterday
+# so the streak does not read 0 every morning.
+_d = TODAY if push_by_day.get(TODAY) else TODAY - dt.timedelta(days=1)
+streak = 0
+while push_by_day.get(_d):
+    streak += 1
+    _d -= dt.timedelta(days=1)
+
+# weekday with the most pushes in the window github keeps (about 90 days)
+DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+by_weekday = Counter()
+for _day, _n in push_by_day.items():
+    by_weekday[_day.weekday()] += _n
+busiest = DAYS[by_weekday.most_common(1)[0][0]] if by_weekday else "-"
 
 stars = sum(r["stargazers_count"] for r in repos)
 disk_kb = sum(r.get("size", 0) for r in repos)
@@ -141,6 +156,7 @@ lang_total = sum(lang_bytes.values()) or 1
 top_langs = lang_bytes.most_common(5)
 
 last_repo = repos[0] if repos else None
+newest_repo = max(repos, key=lambda r: r["created_at"]) if repos else None
 last_sha, last_msg = None, None
 if last_repo:
     c = api(f"/repos/{USER}/{last_repo['name']}/commits?per_page=1")
@@ -151,7 +167,7 @@ if last_repo:
 quotes = json.loads((ROOT / "quotes.json").read_text(encoding="utf-8"))
 quote = quotes[(NOW.date().toordinal() * 4 + NOW.hour // 6) % len(quotes)]  # changes every refresh
 
-handle = clean(user.get("name") or USER) + "@github"
+handle = clean(USER) + "@github"  # the full username; "mish" lives in the ascii logo and prompt pills
 blog = user.get("blog") or ""
 orcid = blog.split("orcid.org/")[-1] if "orcid.org/" in blog else None
 
@@ -203,13 +219,23 @@ def build_svg():
         clip_id[0] += 1
         cid = f"c{clip_id[0]}"
         vals = ";".join(f"{PX * i:.2f}" for i in range(n + 1))
+        dur = max(n, 1) * 0.045
+        xs = ";".join(f"{x + PX * i:.2f}" for i in range(n + 1))
         defs.append(
             f'<clipPath id="{cid}"><rect x="{x}" y="{y - 15}" width="{PX * n + 4:.2f}" height="22">'
             f'<set attributeName="width" to="0" begin="0s" fill="freeze"/>'
             f'<animate attributeName="width" values="{vals}" calcMode="discrete" begin="{delay:.2f}s" '
-            f'dur="{max(n, 1) * 0.045:.2f}s" fill="freeze"/></rect></clipPath>'
+            f'dur="{dur:.2f}s" fill="freeze"/></rect></clipPath>'
         )
         out.append(f'<text x="{x}" y="{y}" fill="{FG}" clip-path="url(#{cid})" xml:space="preserve">{esc(s)}</text>')
+        # a cursor that appears when typing starts, moves one char at a time, then vanishes
+        out.append(
+            f'<rect x="{x}" y="{y - 14}" width="2.4" height="19" rx="1" fill="{PINK}" opacity="0" class="typing">'
+            f'<set attributeName="opacity" to="1" begin="{delay:.2f}s" fill="freeze"/>'
+            f'<animate attributeName="x" values="{xs}" calcMode="discrete" begin="{delay:.2f}s" '
+            f'dur="{dur:.2f}s" fill="freeze"/>'
+            f'<set attributeName="opacity" to="0" begin="{delay + dur + 0.2:.2f}s" fill="freeze"/></rect>'
+        )
         return n * 0.045
 
     def prompt(y, cmd, cursor=False):
@@ -217,7 +243,7 @@ def build_svg():
         h, tip, pad = 22, 11, 12
         y0 = y - 16
         mid = y0 + h / 2
-        clock = NOW.strftime("%H:%M") + " utc"
+        clock = LOCAL.strftime("%H:%M") + " ist"
         segs = [("mish", PINK, 4), ("~", PEACH, 1)]
         segs += [("", c, 0) for c in (BUTTER, MINT, AQUA, SKY)]
         segs += [(clock, LILAC, len(clock))]
@@ -248,7 +274,9 @@ def build_svg():
         if cmd:
             dur = typed(tx, y, cmd, t[0] + 0.35)
         if cursor:
-            out.append(f'<rect x="{tx}" y="{y - 14}" width="2.4" height="19" rx="1" fill="{PINK}" class="cur"/>')
+            # hidden until its own prompt has faded in, then it starts blinking
+            out.append(f'<rect x="{tx}" y="{y - 14}" width="2.4" height="19" rx="1" fill="{PINK}" class="cur" '
+                       f'style="animation-delay:{t[0] + 0.5:.2f}s"/>')
         t[0] += 0.35 + dur + 0.25
 
     # ---- chrome ----------------------------------------------------------
@@ -273,7 +301,7 @@ def build_svg():
     # left: push heatmap (13 weeks, sunday first, like github)
     hy = top + 12 + 5 * 24 + 22
     text(40, hy, [("pushes, last 13 weeks", DIM)], body_t + 0.5)
-    today = NOW.date()
+    today = TODAY
     start = today - dt.timedelta(days=(today.weekday() + 1) % 7) - dt.timedelta(weeks=12)
     mx = max([push_by_day.get(start + dt.timedelta(days=i), 0) for i in range(91)] + [1])
     pitch, cell = 18, 15
@@ -315,10 +343,12 @@ def build_svg():
     text(X, y, [("-" * len(handle), DIM)], d + 0.05)
     y += LH
     host = clip(user.get("bio") or "student", 56)
-    group1 = list(SYSTEM[:1]) + [("host", host), ("uptime", span(user["created_at"])),
-                                 ("packages", f"{len(repos)} repos")] + list(SYSTEM[1:])
+    group1 = list(SYSTEM) + [("host", host), ("uptime", span(user["created_at"])),
+                             ("packages", f"{len(repos)} repos")]
     group1.append(("cpu", ", ".join(n.lower() for n, _ in top_langs[:4]) or "-"))
     group1.append(("disk", f"{disk_kb / 1024:.1f} mb" if disk_kb >= 1024 else f"{disk_kb} kb"))
+    if user.get("location"):
+        group1.append(("location", clip(user["location"], 40)))
     if orcid:
         group1.append(("orcid", orcid))
     group2 = [
@@ -327,6 +357,9 @@ def build_svg():
         ("following", str(user["following"])),
         ("last push", f"{ago(last_repo['pushed_at'])} · {last_repo['name']}" if last_repo else "-"),
         ("pushes 14d", str(pushes_14d)),
+        ("streak", f"{streak}d"),
+        ("busiest day", busiest),
+        ("newest repo", f"{clip(newest_repo['name'], 24)} · {ago(newest_repo['created_at'])}" if newest_repo else "-"),
     ]
     for grp in (group1, group2):
         for k, v in grp:
@@ -365,7 +398,7 @@ def build_svg():
 
     # ---- $ _ -------------------------------------------------------------
     prompt(y, "", cursor=True)
-    text(W - 40, y, [("refreshed " + NOW.strftime("%Y-%m-%d %H:%M") + " utc", DIM)], t[0], anchor="end")
+    text(W - 40, y, [("refreshed " + LOCAL.strftime("%Y-%m-%d %H:%M") + " ist", DIM)], t[0], anchor="end")
     H = int(y + 36)
 
     css = (
@@ -374,9 +407,10 @@ def build_svg():
         + ".b{font-weight:700}"
         + ".l{opacity:0;animation:in .45s ease-out forwards}"
         + "@keyframes in{from{opacity:0}to{opacity:1}}"
-        + ".cur{animation:blink 1.1s steps(1) infinite}"
-        + "@keyframes blink{50%{opacity:0}}"
-        + "@media (prefers-reduced-motion:reduce){.l{opacity:1;animation:none}.cur{animation:none}}"
+        + ".cur{opacity:0;animation:blink 1.1s steps(1) infinite}"
+        + "@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}"
+        + "@media (prefers-reduced-motion:reduce){.l{opacity:1;animation:none}.cur{opacity:1;animation:none}"
+        + ".typing{display:none}}"
     )
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" '
