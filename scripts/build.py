@@ -198,12 +198,13 @@ while count_by_day.get(_d):
     streak += 1
     _d -= dt.timedelta(days=1)
 
-# weekday with the most contributions over the last year
-DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-by_weekday = Counter()
-for _day_date, _n in count_by_day.items():
-    by_weekday[_day_date.weekday()] += _n
-busiest = DAYS[by_weekday.most_common(1)[0][0]] if sum(by_weekday.values()) else "-"
+# the single busiest day of the last year, with its date and count (ties go to the most recent day)
+busiest = "-"
+if any(count_by_day.values()):
+    _best = max(count_by_day, key=lambda day: (count_by_day[day], day))
+    _n = count_by_day[_best]
+    busiest = (f"{_best:%A}, {_best.day} {_best:%B %Y} · "
+               f"{_n} contribution{'' if _n == 1 else 's'}")
 
 stars = sum(r["stargazers_count"] for r in repos)
 disk_kb = sum(r.get("size", 0) for r in repos)
