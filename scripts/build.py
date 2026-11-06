@@ -142,13 +142,12 @@ busiest = DAYS[by_weekday.most_common(1)[0][0]] if by_weekday else "-"
 stars = sum(r["stargazers_count"] for r in repos)
 disk_kb = sum(r.get("size", 0) for r in repos)
 
-lang_bytes = Counter()
-for r in repos[:25]:
-    lang_bytes.update(api(f"/repos/{USER}/{r['name']}/languages") or {})
-if not lang_bytes:
-    lang_bytes = Counter(r["language"] for r in repos if r["language"])
-lang_total = sum(lang_bytes.values()) or 1
-top_langs = lang_bytes.most_common(5)
+# languages: one vote per repo, for the language github lists as that repo's main one.
+# (counting bytes let a single huge .ipynb, which is mostly embedded output, outweigh everything.)
+lang_count = Counter(r["language"] for r in repos if r["language"])
+lang_total = sum(lang_count.values()) or 1
+top_langs = lang_count.most_common(5)
+LANG_SHORT = {"jupyter notebook": "jupyter"}  # shorter legend labels so they are not clipped
 
 last_repo = repos[0] if repos else None
 newest_repo = max(repos, key=lambda r: r["created_at"]) if repos else None
@@ -326,7 +325,7 @@ def build_svg():
     ly = hy + 12 + 7 * pitch + 22
     bar_w = 13 * pitch - 3
     bx = 40.0
-    segs = [(n.lower(), b) for n, b in top_langs]
+    segs = [(LANG_SHORT.get(n.lower(), n.lower()), b) for n, b in top_langs]
     for i, (name, b) in enumerate(segs):
         w = bar_w * b / lang_total
         out.append(f'<rect x="{bx:.1f}" y="{ly}" width="{max(w - 3, 3):.1f}" height="10" rx="3" '
