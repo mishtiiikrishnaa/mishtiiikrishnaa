@@ -387,17 +387,23 @@ def build_svg():
 
     # left: language bar + legend
     ly = hy + 12 + 7 * pitch + 22
-    bar_w = 13 * pitch - 3
+    bar_w = 12 * pitch + cell  # exactly as wide as the heatmap: 12 pitches plus one cell
     bx = 40.0
     segs = [(LANG_SHORT.get(n.lower(), n.lower()), b) for n, b in top_langs]
+    seg_cols = LANG_COLOURS[: len(segs)]
+    other = lang_total - sum(b for _, b in segs)
+    if other > 0 and segs:  # everything outside the top five, so the bar always totals 100%
+        segs.append(("other", other))
+        seg_cols.append(DIM)
     for i, (name, b) in enumerate(segs):
         w = bar_w * b / lang_total
-        out.append(f'<rect x="{bx:.1f}" y="{ly}" width="{max(w - 3, 3):.1f}" height="10" rx="3" '
-                   f'fill="{LANG_COLOURS[i]}" {fade(body_t)}/>')
+        gap = 3 if i < len(segs) - 1 else 0  # no trailing gap: the bar ends flush with the heatmap
+        out.append(f'<rect x="{bx:.1f}" y="{ly}" width="{max(w - gap, 3):.1f}" height="10" rx="3" '
+                   f'fill="{seg_cols[i]}" {fade(body_t)}/>')
         bx += w
     for i, (name, b) in enumerate(segs):
         cx, cy = 40 + (i % 2) * 135, ly + 28 + (i // 2) * LH
-        out.append(f'<rect x="{cx}" y="{cy - 9}" width="9" height="9" rx="2.5" fill="{LANG_COLOURS[i]}" '
+        out.append(f'<rect x="{cx}" y="{cy - 9}" width="9" height="9" rx="2.5" fill="{seg_cols[i]}" '
                    f'{fade(body_t)}/>')
         text(cx + 15, cy, [(f"{clip(name, 10)} {b * 100 / lang_total:.0f}%", FG)], body_t)
     left_bottom = ly + 28 + ((len(segs) - 1) // 2) * LH
@@ -427,8 +433,8 @@ def build_svg():
         ("followers", str(user["followers"])),
         ("following", str(user["following"])),
         ("last push", f"{ago(last_repo['pushed_at'])} · {last_repo['name']}" if last_repo else "-"),
-        ("contribs 14d", str(contribs_14d)),
-        ("contribs 1y", str(total_year)),
+        ("contributions 14d", str(contribs_14d)),
+        ("contributions 1y", str(total_year)),
         ("streak", f"{streak}d"),
         ("busiest day", busiest),
         ("newest repo", f"{clip(newest_repo['name'], 24)} · {ago(newest_repo['created_at'])}" if newest_repo else "-"),
