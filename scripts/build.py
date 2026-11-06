@@ -4,6 +4,8 @@
 stdlib only. reads public github data and reports only what has already
 happened. the card embeds cmu typewriter text (sil ofl, see fonts/OFL.txt),
 so every visitor sees the same typeface.
+
+runs hourly from .github/workflows/refresh.yml.
 """
 import base64
 import datetime as dt
@@ -11,6 +13,7 @@ import html
 import json
 import os
 import textwrap
+import time
 import urllib.error
 import urllib.request
 from collections import Counter
@@ -24,6 +27,8 @@ NOW = dt.datetime.now(dt.timezone.utc)
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30), "IST")  # no dst, so a fixed offset is exact
 LOCAL = NOW.astimezone(IST)
 TODAY = LOCAL.date()  # "today" means today in india, not in greenwich
+
+CADENCE = "hour"  # how often the workflow runs; used in the svg description, keep it in sync with the cron
 
 # ---- ghostty palette (from the real config) -------------------------------
 BG, BORDER = "#0f0f12", "#2a2a2f"
@@ -40,17 +45,21 @@ FS = 14
 
 
 # ------------------------------------------------------------------ helpers
-def api(path):
+def api(path, tries=3):
+    """get json from the github api. retries a couple of times, because an hourly job meets more blips."""
     headers = {"Accept": "application/vnd.github+json", "User-Agent": f"{USER}-profile-card"}
     if TOKEN:
         headers["Authorization"] = f"Bearer {TOKEN}"
-    req = urllib.request.Request(f"https://api.github.com{path}", headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            return json.load(r)
-    except (urllib.error.URLError, TimeoutError, ValueError) as e:
-        print(f"! {path} -> {e}")
-        return None
+    for attempt in range(1, tries + 1):
+        req = urllib.request.Request(f"https://api.github.com{path}", headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return json.load(r)
+        except (urllib.error.URLError, TimeoutError, ValueError) as e:
+            print(f"! {path} -> {e} (attempt {attempt}/{tries})")
+            if attempt < tries:
+                time.sleep(2 * attempt)
+    return None
 
 
 def parse(ts):
@@ -109,10 +118,13 @@ def font_css():
 # ------------------------------------------------------------------ data
 user = api(f"/users/{USER}")
 if not user:
-    raise SystemExit("could not reach the github api; leaving the card untouched")
+    # exit 0 on purpose: a flaky api hour should leave the old card in place, not turn the workflow red
+    print("could not reach the github api; leaving the card untouched")
+    raise SystemExit(0)
 
 repos = api(f"/users/{USER}/repos?per_page=100&type=owner&sort=pushed") or []
-repos = [r for r in repos if not r["fork"] and r["name"].lower() != USER.lower()]
+# empty repos have no pushed_at, which would crash the "last push" line, so they sit this one out
+repos = [r for r in repos if not r["fork"] and r["name"].lower() != USER.lower() and r.get("pushed_at")]
 repos.sort(key=lambda r: r["pushed_at"] or "", reverse=True)
 
 events = []
@@ -159,7 +171,7 @@ if last_repo:
         last_msg = c[0]["commit"]["message"].split("\n")[0]
 
 quotes = json.loads((ROOT / "quotes.json").read_text(encoding="utf-8"))
-quote = quotes[(NOW.date().toordinal() * 4 + NOW.hour // 6) % len(quotes)]  # changes every refresh
+quote = quotes[(NOW.date().toordinal() * 24 + NOW.hour) % len(quotes)]  # changes every hour
 
 handle = clean(USER) + "@github"  # the full username; "mish" lives in the ascii logo and prompt pills
 blog = user.get("blog") or ""
@@ -422,7 +434,7 @@ def build_svg():
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" '
         f'aria-labelledby="t d">\n<title id="t">{esc(handle)}</title>'
-        f'<desc id="d">a fastfetch-style summary of {esc(USER)} on github, redrawn every six hours</desc>\n'
+        f'<desc id="d">a fastfetch-style summary of {esc(USER)} on github, redrawn every {CADENCE}</desc>\n'
         f"<style>{css}</style>\n<defs>"
         f'<radialGradient id="glow" cx="85%" cy="0%" r="70%"><stop offset="0" stop-color="{PINK}" stop-opacity=".10"/>'
         f'<stop offset="1" stop-color="{PINK}" stop-opacity="0"/></radialGradient>' + "".join(defs) + "</defs>\n"
