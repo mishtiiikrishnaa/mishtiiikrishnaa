@@ -1,0 +1,16 @@
+[
+  {"text": "The Analytical Engine weaves algebraical patterns just as the Jacquard loom weaves flowers and leaves.", "by": "Ada Lovelace"},
+  {"text": "It can do whatever we know how to order it to perform.", "by": "Ada Lovelace"},
+  {"text": "We are all in the gutter, but some of us are looking at the stars.", "by": "Oscar Wilde"},
+  {"text": "I can resist everything except temptation.", "by": "Oscar Wilde"},
+  {"text": "Programs must be written for people to read, and only incidentally for machines to execute.", "by": "Abelson & Sussman"},
+  {"text": "Simplicity is prerequisite for reliability.", "by": "Edsger W. Dijkstra"},
+  {"text": "Testing shows the presence, not the absence of bugs.", "by": "Edsger W. Dijkstra"},
+  {"text": "Talk is cheap. Show me the code.", "by": "Linus Torvalds"},
+  {"text": "There are only two hard things in computer science: cache invalidation and naming things.", "by": "Phil Karlton"},
+  {"text": "The most dangerous phrase in the language is, we've always done it this way.", "by": "Grace Hopper"},
+  {"text": "Debugging is twice as hard as writing the code in the first place.", "by": "Brian Kernighan"},
+  {"text": "The only way to learn a new programming language is by writing programs in it.", "by": "Dennis Ritchie"},
+  {"text": "Make it work, make it right, make it fast.", "by": "Kent Beck"},
+  {"text": "Computers are good at following instructions, but not at reading your mind.", "by": "Donald Knuth"}
+]

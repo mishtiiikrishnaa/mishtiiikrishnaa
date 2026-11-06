@@ -1,16 +1,24 @@
-## Hi there 👋
+<div align="center">
 
-<!--
-**mishtiiikrishnaa/mishtiiikrishnaa** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+<img src="assets/neofetch.svg" alt="a neofetch-style card summarising this github account, regenerated automatically" width="100%">
 
-Here are some ideas to get you started:
+</div>
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+## recently touched
+
+<!--RECENT:START-->
+<!--RECENT:END-->
+
+## last words
+
+<!--LAST:START-->
+<!--LAST:END-->
+
+## fortune
+
+<!--QUOTE:START-->
+<!--QUOTE:END-->
+
+<br>
+
+<sub>this page rewrites itself every six hours through github actions, and reports only what has already happened. last refreshed <!--STAMP:START-->never<!--STAMP:END-->.</sub>
