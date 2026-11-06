@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """redraws assets/neofetch.svg: a fastfetch-style card for a github profile.
 
-stdlib only. reads public github data and reports only what has already
-happened. the card embeds cmu typewriter text (sil ofl, see fonts/OFL.txt),
+stdlib only. reads public github data (plus your contribution calendar, the same
+numbers as the graph on your profile) and reports only what has already happened. the card embeds cmu typewriter text (sil ofl, see fonts/OFL.txt),
 so every visitor sees the same typeface.
 
 runs hourly from .github/workflows/refresh.yml.
@@ -20,7 +20,9 @@ from collections import Counter
 from pathlib import Path
 
 USER = os.environ.get("GH_USER", "mishtiiikrishnaa")
-TOKEN = os.environ.get("GITHUB_TOKEN")
+# CARD_TOKEN is optional: a classic token with read:user, only needed if the default
+# GITHUB_TOKEN cannot see your private contribution counts.
+TOKEN = os.environ.get("CARD_TOKEN") or os.environ.get("GITHUB_TOKEN")
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 NOW = dt.datetime.now(dt.timezone.utc)
@@ -59,6 +61,34 @@ def api(path, tries=3):
             print(f"! {path} -> {e} (attempt {attempt}/{tries})")
             if attempt < tries:
                 time.sleep(2 * attempt)
+    return None
+
+
+def graphql(query, variables, tries=3):
+    """post a graphql query. the graphql api always needs a token, unlike the rest one."""
+    if not TOKEN:
+        print("! graphql needs GITHUB_TOKEN (or CARD_TOKEN) in the environment")
+        return None
+    headers = {
+        "Authorization": f"Bearer {TOKEN}",
+        "Content-Type": "application/json",
+        "User-Agent": f"{USER}-profile-card",
+    }
+    body = json.dumps({"query": query, "variables": variables}).encode()
+    for attempt in range(1, tries + 1):
+        req = urllib.request.Request("https://api.github.com/graphql", data=body, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                data = json.load(r)
+        except (urllib.error.URLError, TimeoutError, ValueError) as e:
+            print(f"! graphql -> {e} (attempt {attempt}/{tries})")
+            if attempt < tries:
+                time.sleep(2 * attempt)
+            continue
+        if data.get("errors"):
+            print(f"! graphql errors: {data['errors']}")
+            return None
+        return data.get("data")
     return None
 
 
@@ -127,29 +157,53 @@ repos = api(f"/users/{USER}/repos?per_page=100&type=owner&sort=pushed") or []
 repos = [r for r in repos if not r["fork"] and r["name"].lower() != USER.lower() and r.get("pushed_at")]
 repos.sort(key=lambda r: r["pushed_at"] or "", reverse=True)
 
-events = []
-for page in (1, 2, 3):
-    chunk = api(f"/users/{USER}/events/public?per_page=100&page={page}")
-    if not chunk:
-        break
-    events += chunk
-push_by_day = Counter(parse(e["created_at"]).astimezone(IST).date() for e in events if e["type"] == "PushEvent")
-pushes_14d = sum(push_by_day.get(TODAY - dt.timedelta(days=i), 0) for i in range(14))
+# the contribution calendar: same numbers, same quartile colours as the graph on the profile.
+# (the old events feed only showed public pushes and quietly dropped a lot of activity.)
+CALENDAR_QUERY = """
+query($login: String!) {
+  user(login: $login) {
+    contributionsCollection {
+      contributionCalendar {
+        totalContributions
+        weeks { contributionDays { date contributionCount contributionLevel } }
+      }
+    }
+  }
+}
+"""
+LEVELS = {"NONE": 0, "FIRST_QUARTILE": 1, "SECOND_QUARTILE": 2, "THIRD_QUARTILE": 3, "FOURTH_QUARTILE": 4}
 
-# current streak: consecutive days with a push. if nothing yet today, count back from yesterday
-# so the streak does not read 0 every morning.
-_d = TODAY if push_by_day.get(TODAY) else TODAY - dt.timedelta(days=1)
+cal = graphql(CALENDAR_QUERY, {"login": USER})
+try:
+    cal = cal["user"]["contributionsCollection"]["contributionCalendar"]
+except (TypeError, KeyError):
+    # without the calendar the card would show zeros and lie, so keep the old one instead
+    print("could not read the contribution calendar; leaving the card untouched")
+    raise SystemExit(0)
+
+count_by_day, level_by_day = {}, {}
+for _week in cal["weeks"]:
+    for _day in _week["contributionDays"]:
+        _date = dt.date.fromisoformat(_day["date"])
+        count_by_day[_date] = _day["contributionCount"]
+        level_by_day[_date] = LEVELS.get(_day["contributionLevel"], 0)
+total_year = cal["totalContributions"]
+contribs_14d = sum(count_by_day.get(TODAY - dt.timedelta(days=i), 0) for i in range(14))
+
+# current streak: consecutive days with a contribution. if nothing yet today, count back from
+# yesterday so the streak does not read 0 every morning.
+_d = TODAY if count_by_day.get(TODAY) else TODAY - dt.timedelta(days=1)
 streak = 0
-while push_by_day.get(_d):
+while count_by_day.get(_d):
     streak += 1
     _d -= dt.timedelta(days=1)
 
-# weekday with the most pushes in the window github keeps (about 90 days)
+# weekday with the most contributions over the last year
 DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 by_weekday = Counter()
-for _day, _n in push_by_day.items():
-    by_weekday[_day.weekday()] += _n
-busiest = DAYS[by_weekday.most_common(1)[0][0]] if by_weekday else "-"
+for _day_date, _n in count_by_day.items():
+    by_weekday[_day_date.weekday()] += _n
+busiest = DAYS[by_weekday.most_common(1)[0][0]] if sum(by_weekday.values()) else "-"
 
 stars = sum(r["stargazers_count"] for r in repos)
 disk_kb = sum(r.get("size", 0) for r in repos)
@@ -316,17 +370,15 @@ def build_svg():
 
     # left: push heatmap (13 weeks, sunday first, like github)
     hy = top + 12 + len(art) * ART_LH + 22
-    text(40, hy, [("pushes, last 13 weeks", DIM)], body_t)
+    text(40, hy, [("contributions, last 13 weeks", DIM)], body_t)
     today = TODAY
     start = today - dt.timedelta(days=(today.weekday() + 1) % 7) - dt.timedelta(weeks=12)
-    mx = max([push_by_day.get(start + dt.timedelta(days=i), 0) for i in range(91)] + [1])
     pitch, cell = 18, 15
     for i in range(91):
         d = start + dt.timedelta(days=i)
         if d > today:
             continue
-        c = push_by_day.get(d, 0)
-        lvl = 0 if c == 0 else min(4, 1 + int((c - 1) * 3 / max(mx - 1, 1) + 0.0001))
+        lvl = level_by_day.get(d, 0)
         col, row = divmod(i, 7)
         out.append(
             f'<rect x="{40 + col * pitch}" y="{hy + 12 + row * pitch}" width="{cell}" height="{cell}" rx="3" '
@@ -375,7 +427,8 @@ def build_svg():
         ("followers", str(user["followers"])),
         ("following", str(user["following"])),
         ("last push", f"{ago(last_repo['pushed_at'])} · {last_repo['name']}" if last_repo else "-"),
-        ("pushes 14d", str(pushes_14d)),
+        ("contribs 14d", str(contribs_14d)),
+        ("contribs 1y", str(total_year)),
         ("streak", f"{streak}d"),
         ("busiest day", busiest),
         ("newest repo", f"{clip(newest_repo['name'], 24)} · {ago(newest_repo['created_at'])}" if newest_repo else "-"),
