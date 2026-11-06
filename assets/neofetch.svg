@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="591" viewBox="0 0 920 591" role="img" aria-label="neofetch-style summary of mishtiiikrishnaa's github, refreshed automatically">
+<style>
+text{font-family:"CMU Typewriter Text","Latin Modern Mono","Courier New",ui-monospace,Menlo,monospace;font-size:14px}
+.l{opacity:0;animation:in .45s ease-out forwards}
+@keyframes in{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+.cur{animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.l{opacity:1;animation:none}.cur{animation:none}}
+</style>
+<rect x="0.5" y="0.5" width="919" height="590" rx="14" fill="#1c1420" stroke="#3a2b40"/>
+<circle cx="28" cy="24" r="6" fill="#FF7FAE"/>
+<circle cx="50" cy="24" r="6" fill="#FFE8A3"/>
+<circle cx="72" cy="24" r="6" fill="#B8E6D0"/>
+<text x="460.0" y="28" fill="#8f7d98" text-anchor="middle">mish@github: ~</text>
+<line x1="0" y1="46" x2="920" y2="46" stroke="#3a2b40"/>
+<text x="40" y="78" fill="#f4e9f1" class="l" style="animation-delay:0.07s" xml:space="preserve" >$ neofetch</text>
+<text x="36" y="154" fill="#FFA6C9" class="l" style="animation-delay:0.20s;font-size:18px" xml:space="preserve">            _        _     </text>
+<text x="36" y="179" fill="#FF7FAE" class="l" style="animation-delay:0.30s;font-size:18px" xml:space="preserve"> _ __ ___  (_) ___  | |__  </text>
+<text x="36" y="204" fill="#FFCBA4" class="l" style="animation-delay:0.40s;font-size:18px" xml:space="preserve">| &#x27;_ ` _ \ | |/ __| | &#x27;_ \ </text>
+<text x="36" y="229" fill="#FFE8A3" class="l" style="animation-delay:0.50s;font-size:18px" xml:space="preserve">| | | | | || |\__ \ | | | |</text>
+<text x="36" y="254" fill="#B8E6D0" class="l" style="animation-delay:0.60s;font-size:18px" xml:space="preserve">|_| |_| |_||_||___/ |_| |_|</text>
+<text x="340" y="115" fill="#FFA6C9" class="l" style="animation-delay:0.14s" xml:space="preserve" font-weight="bold">mish@github</text>
+<text x="340" y="133.4" fill="#8f7d98" class="l" style="animation-delay:0.21s" xml:space="preserve" >-----------</text>
+<text x="340" y="156.4" fill="#FFA6C9" class="l" style="animation-delay:0.28s" xml:space="preserve" font-weight="bold">os</text>
+<text x="440" y="156.4" fill="#f4e9f1" class="l" style="animation-delay:0.35s" xml:space="preserve" >second year computer science engineering student :)</text>
+<text x="340" y="179.4" fill="#FFA6C9" class="l" style="animation-delay:0.42s" xml:space="preserve" font-weight="bold">uptime</text>
+<text x="440" y="179.4" fill="#f4e9f1" class="l" style="animation-delay:0.49s" xml:space="preserve" >1y 2mo</text>
+<text x="340" y="202.4" fill="#FFA6C9" class="l" style="animation-delay:0.56s" xml:space="preserve" font-weight="bold">repos</text>
+<text x="440" y="202.4" fill="#f4e9f1" class="l" style="animation-delay:0.63s" xml:space="preserve" >12 public, 1 star earned</text>
+<text x="340" y="225.4" fill="#FFA6C9" class="l" style="animation-delay:0.70s" xml:space="preserve" font-weight="bold">langs</text>
+<text x="440" y="225.4" fill="#f4e9f1" class="l" style="animation-delay:0.77s" xml:space="preserve" >python, html, jupyter notebook, typescript</text>
+<text x="340" y="248.4" fill="#FFA6C9" class="l" style="animation-delay:0.84s" xml:space="preserve" font-weight="bold">last push</text>
+<text x="440" y="248.4" fill="#f4e9f1" class="l" style="animation-delay:0.91s" xml:space="preserve" >23m ago · virtualinternship1</text>
+<text x="340" y="271.4" fill="#FFA6C9" class="l" style="animation-delay:0.98s" xml:space="preserve" font-weight="bold">pushes 14d</text>
+<text x="440" y="271.4" fill="#f4e9f1" class="l" style="animation-delay:1.05s" xml:space="preserve" >·······█··▃▄··  (8)</text>
+<text x="340" y="294.4" fill="#FFA6C9" class="l" style="animation-delay:1.12s" xml:space="preserve" font-weight="bold">followers</text>
+<text x="440" y="294.4" fill="#f4e9f1" class="l" style="animation-delay:1.19s" xml:space="preserve" >6 · following 7</text>
+<rect x="340.0" y="311.4" width="159.0" height="12" rx="3" fill="#FFA6C9" class="l" style="animation-delay:1.19s"/>
+<rect x="502.0" y="311.4" width="105.0" height="12" rx="3" fill="#FFCBA4" class="l" style="animation-delay:1.29s"/>
+<rect x="610.0" y="311.4" width="51.0" height="12" rx="3" fill="#B8E6D0" class="l" style="animation-delay:1.39s"/>
+<rect x="664.0" y="311.4" width="51.0" height="12" rx="3" fill="#CDB4F6" class="l" style="animation-delay:1.49s"/>
+<rect x="340" y="335.4" width="26" height="16" rx="3" fill="#FFA6C9" class="l" style="animation-delay:1.19s"/>
+<rect x="370" y="335.4" width="26" height="16" rx="3" fill="#FF7FAE" class="l" style="animation-delay:1.24s"/>
+<rect x="400" y="335.4" width="26" height="16" rx="3" fill="#FFCBA4" class="l" style="animation-delay:1.29s"/>
+<rect x="430" y="335.4" width="26" height="16" rx="3" fill="#FFE8A3" class="l" style="animation-delay:1.34s"/>
+<rect x="460" y="335.4" width="26" height="16" rx="3" fill="#B8E6D0" class="l" style="animation-delay:1.39s"/>
+<rect x="490" y="335.4" width="26" height="16" rx="3" fill="#A8D8F0" class="l" style="animation-delay:1.44s"/>
+<rect x="520" y="335.4" width="26" height="16" rx="3" fill="#CDB4F6" class="l" style="animation-delay:1.49s"/>
+<rect x="550" y="335.4" width="26" height="16" rx="3" fill="#E9C6F2" class="l" style="animation-delay:1.54s"/>
+<text x="40" y="389.4" fill="#f4e9f1" class="l" style="animation-delay:1.26s" xml:space="preserve" >$ fortune</text>
+<text x="60" y="416.4" fill="#f4e9f1" class="l" style="animation-delay:1.33s" xml:space="preserve" font-style="italic">“Make it work, make it right, make it fast.”</text>
+<text x="60" y="439.4" fill="#FFA6C9" class="l" style="animation-delay:1.40s" xml:space="preserve" >— Kent Beck</text>
+<text x="40" y="476.2" fill="#f4e9f1" class="l" style="animation-delay:1.47s" xml:space="preserve" >$ git log -1</text>
+<text x="60" y="503.2" fill="#f4e9f1" class="l" style="animation-delay:1.54s" xml:space="preserve" >Merge remote-tracking branch &#x27;origin/main&#x27;</text>
+<text x="60" y="526.2" fill="#8f7d98" class="l" style="animation-delay:1.61s" xml:space="preserve" >in virtualinternship1, 23m ago</text>
+<text x="40" y="563.0" fill="#f4e9f1">$ <tspan class="cur" fill="#FFA6C9">█</tspan></text>
+</svg>
