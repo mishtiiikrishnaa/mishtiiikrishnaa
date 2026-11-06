@@ -197,6 +197,8 @@ def build_svg():
     out, defs = [], []
     clip_id = [0]
     t = [0.3]  # animation clock, seconds
+    ENTER = 0.35  # beat between the last typed char and the output showing up
+    READ = 0.8  # beat between an output and the next prompt
 
     def fade(delay):
         return f'class="l" style="animation-delay:{delay:.2f}s"'
@@ -212,14 +214,14 @@ def build_svg():
         an = f' text-anchor="{anchor}"' if anchor else ""
         out.append(f'<text x="{x}" y="{y}" class="l" style="{st}"{an} xml:space="preserve" {extra}>{inner}</text>')
 
-    def typed(x, y, s, delay):
+    def typed(x, y, s, delay, appear):
         """a command that types itself out (smil; shows in full if smil is unsupported)."""
         s = clean(s)
         n = len(s)
         clip_id[0] += 1
         cid = f"c{clip_id[0]}"
         vals = ";".join(f"{PX * i:.2f}" for i in range(n + 1))
-        dur = max(n, 1) * 0.045
+        dur = max(n, 1) * 0.06
         xs = ";".join(f"{x + PX * i:.2f}" for i in range(n + 1))
         defs.append(
             f'<clipPath id="{cid}"><rect x="{x}" y="{y - 15}" width="{PX * n + 4:.2f}" height="22">'
@@ -228,15 +230,15 @@ def build_svg():
             f'dur="{dur:.2f}s" fill="freeze"/></rect></clipPath>'
         )
         out.append(f'<text x="{x}" y="{y}" fill="{FG}" clip-path="url(#{cid})" xml:space="preserve">{esc(s)}</text>')
-        # a cursor that appears when typing starts, moves one char at a time, then vanishes
+        # the cursor shows up with its prompt, waits, moves one char at a time, then goes on enter
         out.append(
             f'<rect x="{x}" y="{y - 14}" width="2.4" height="19" rx="1" fill="{PINK}" opacity="0" class="typing">'
-            f'<set attributeName="opacity" to="1" begin="{delay:.2f}s" fill="freeze"/>'
+            f'<set attributeName="opacity" to="1" begin="{appear:.2f}s" fill="freeze"/>'
             f'<animate attributeName="x" values="{xs}" calcMode="discrete" begin="{delay:.2f}s" '
             f'dur="{dur:.2f}s" fill="freeze"/>'
-            f'<set attributeName="opacity" to="0" begin="{delay + dur + 0.2:.2f}s" fill="freeze"/></rect>'
+            f'<set attributeName="opacity" to="0" begin="{delay + dur + ENTER:.2f}s" fill="freeze"/></rect>'
         )
-        return n * 0.045
+        return dur
 
     def prompt(y, cmd, cursor=False):
         """powerlevel-style pill: mish | ~ | rainbow chevrons | clock, then a chevron."""
@@ -252,7 +254,8 @@ def build_svg():
             w = (n * PX + 2 * pad) if label else 9
             placed.append((x, w, label, col))
             x += w
-        g = [f'<g {fade(t[0])}>']
+        t0 = t[0]  # the prompt prints instantly, like a real shell
+        g = [f'<g {fade(t0)}>']
         for i in range(len(placed) - 1, -1, -1):  # right to left so tips overlap the next segment
             sx, w, label, col = placed[i]
             if i == 0:
@@ -270,14 +273,14 @@ def build_svg():
         g.append("</g>")
         out.append("".join(g))
         tx = cx + 20
-        dur = 0.0
         if cmd:
-            dur = typed(tx, y, cmd, t[0] + 0.35)
+            start = t0 + 0.6  # cursor idles at the prompt for a moment before typing
+            dur = typed(tx, y, cmd, start, t0)
+            t[0] = start + dur + ENTER  # enter pressed: the output prints now
         if cursor:
-            # hidden until its own prompt has faded in, then it starts blinking
+            # appears with its own prompt and blinks, waiting for the next command
             out.append(f'<rect x="{tx}" y="{y - 14}" width="2.4" height="19" rx="1" fill="{PINK}" class="cur" '
-                       f'style="animation-delay:{t[0] + 0.5:.2f}s"/>')
-        t[0] += 0.35 + dur + 0.25
+                       f'style="animation-delay:{t0:.2f}s"/>')
 
     # ---- chrome ----------------------------------------------------------
     for i, c in enumerate((PINK_HI, PEACH, MINT)):
@@ -294,13 +297,13 @@ def build_svg():
     for i, row in enumerate(logo_rows()):
         out.append(
             f'<text x="40" y="{top + 12 + i * 24}" fill="{[PINK, PEACH, BUTTER, MINT, SKY][i]}" class="l" '
-            f'style="animation-delay:{body_t + i * 0.08:.2f}s;font-size:19px" '
+            f'style="animation-delay:{body_t:.2f}s;font-size:19px" '
             f'xml:space="preserve">{esc(row)}</text>'
         )
 
     # left: push heatmap (13 weeks, sunday first, like github)
     hy = top + 12 + 5 * 24 + 22
-    text(40, hy, [("pushes, last 13 weeks", DIM)], body_t + 0.5)
+    text(40, hy, [("pushes, last 13 weeks", DIM)], body_t)
     today = TODAY
     start = today - dt.timedelta(days=(today.weekday() + 1) % 7) - dt.timedelta(weeks=12)
     mx = max([push_by_day.get(start + dt.timedelta(days=i), 0) for i in range(91)] + [1])
@@ -314,7 +317,7 @@ def build_svg():
         col, row = divmod(i, 7)
         out.append(
             f'<rect x="{40 + col * pitch}" y="{hy + 12 + row * pitch}" width="{cell}" height="{cell}" rx="3" '
-            f'fill="{HEAT[lvl]}" {fade(body_t + 0.6 + col * 0.05)}/>'
+            f'fill="{HEAT[lvl]}" {fade(body_t)}/>'
         )
 
     # left: language bar + legend
@@ -325,13 +328,13 @@ def build_svg():
     for i, (name, b) in enumerate(segs):
         w = bar_w * b / lang_total
         out.append(f'<rect x="{bx:.1f}" y="{ly}" width="{max(w - 3, 3):.1f}" height="10" rx="3" '
-                   f'fill="{LANG_COLOURS[i]}" {fade(body_t + 1.4 + i * 0.1)}/>')
+                   f'fill="{LANG_COLOURS[i]}" {fade(body_t)}/>')
         bx += w
     for i, (name, b) in enumerate(segs):
         cx, cy = 40 + (i % 2) * 135, ly + 28 + (i // 2) * LH
         out.append(f'<rect x="{cx}" y="{cy - 9}" width="9" height="9" rx="2.5" fill="{LANG_COLOURS[i]}" '
-                   f'{fade(body_t + 1.5 + i * 0.1)}/>')
-        text(cx + 15, cy, [(f"{clip(name, 10)} {b * 100 / lang_total:.0f}%", FG)], body_t + 1.5 + i * 0.1)
+                   f'{fade(body_t)}/>')
+        text(cx + 15, cy, [(f"{clip(name, 10)} {b * 100 / lang_total:.0f}%", FG)], body_t)
     left_bottom = ly + 28 + ((len(segs) - 1) // 2) * LH
 
     # right: fastfetch fields
@@ -340,7 +343,7 @@ def build_svg():
     d = body_t
     text(X, y, [(handle, PINK, True)], d)
     y += LH
-    text(X, y, [("-" * len(handle), DIM)], d + 0.05)
+    text(X, y, [("-" * len(handle), DIM)], d)
     y += LH
     host = clip(user.get("bio") or "student", 56)
     group1 = list(SYSTEM) + [("host", host), ("uptime", span(user["created_at"])),
@@ -361,19 +364,17 @@ def build_svg():
         ("busiest day", busiest),
         ("newest repo", f"{clip(newest_repo['name'], 24)} · {ago(newest_repo['created_at'])}" if newest_repo else "-"),
     ]
-    for grp in (group1, group2):
-        for k, v in grp:
-            d += 0.06
-            text(X, y, [(k, PINK, True), (": ", FG), (v, FG)], d)
-            y += LH
-        y += LH * 0.5
+    for k, v in group1 + group2:  # one block, no gap between the groups
+        text(X, y, [(k, PINK, True), (": ", FG), (v, FG)], d)
+        y += LH
+    y += LH * 0.5
     # fastfetch colour blocks
     for r, row in enumerate((BLOCKS_1, BLOCKS_2)):
         for i, c in enumerate(row):
             out.append(f'<rect x="{X + i * 28}" y="{y - 12 + r * 15}" width="28" height="15" fill="{c}" '
-                       f'{fade(d + 0.1 + i * 0.04)}/>')
+                       f'{fade(d)}/>')
     right_bottom = y + 30
-    t[0] = d + 0.6
+    t[0] = body_t + READ
 
     y = max(left_bottom, right_bottom) + 40
 
@@ -382,10 +383,10 @@ def build_svg():
     y += LH + 8
     for line in textwrap.wrap(f"“{clean(quote['text'])}”", 108):
         text(60, y, [(line, FG)], t[0])
-        t[0] += 0.12
         y += LH
     text(60, y, [("— ada lovelace", PINK), (f" · {quote['src']}", DIM)], t[0])
     y += LH * 2
+    t[0] += READ
 
     # ---- $ git log -1 ----------------------------------------------------
     if last_sha and last_repo:
@@ -393,8 +394,9 @@ def build_svg():
         y += LH + 8
         text(60, y, [(last_sha, PEACH), ("  " + clip(last_msg, 96), FG)], t[0])
         y += LH
-        text(60, y, [(f"# {last_repo['name']}, {ago(last_repo['pushed_at'])}", DIM)], t[0] + 0.1)
+        text(60, y, [(f"# {last_repo['name']}, {ago(last_repo['pushed_at'])}", DIM)], t[0])
         y += LH * 2
+        t[0] += READ
 
     # ---- $ _ -------------------------------------------------------------
     prompt(y, "", cursor=True)
@@ -405,7 +407,7 @@ def build_svg():
         font_css()
         + 'text{font-family:"CMU Typewriter Text",monospace;font-size:14px;font-weight:400}'
         + ".b{font-weight:700}"
-        + ".l{opacity:0;animation:in .45s ease-out forwards}"
+        + ".l{opacity:0;animation:in .01s linear forwards}"
         + "@keyframes in{from{opacity:0}to{opacity:1}}"
         + ".cur{opacity:0;animation:blink 1.1s steps(1) infinite}"
         + "@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}"
