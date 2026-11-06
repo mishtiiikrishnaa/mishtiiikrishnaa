@@ -194,7 +194,7 @@ def build_svg():
     W = 940
     PX = CW * FS  # width of one character at 14px
     LH = 21
-    out, defs = [], []
+    out, defs, kf = [], [], []
     clip_id = [0]
     t = [0.3]  # animation clock, seconds
     ENTER = 0.35  # beat between the last typed char and the output showing up
@@ -214,29 +214,35 @@ def build_svg():
         an = f' text-anchor="{anchor}"' if anchor else ""
         out.append(f'<text x="{x}" y="{y}" class="l" style="{st}"{an} xml:space="preserve" {extra}>{inner}</text>')
 
-    def typed(x, y, s, delay, appear):
-        """a command that types itself out (smil; shows in full if smil is unsupported)."""
+    def typed(x, y, s, start, appear):
+        """a command typed one character at a time, like a real shell.
+
+        every character is its own element that is invisible until its moment (css only, so it
+        behaves the same in safari, chrome and firefox; no smil, no clip paths). the cursor shows up
+        with the prompt, steps along with the typing and disappears when enter is pressed.
+        """
         s = clean(s)
         n = len(s)
+        step = 0.06
+        dur = max(n, 1) * step
+        for i, ch in enumerate(s):
+            if ch == " ":
+                continue
+            out.append(
+                f'<text x="{x + PX * i:.2f}" y="{y}" fill="{FG}" class="l" '
+                f'style="animation-delay:{start + i * step:.2f}s" xml:space="preserve">{esc(ch)}</text>'
+            )
         clip_id[0] += 1
-        cid = f"c{clip_id[0]}"
-        vals = ";".join(f"{PX * i:.2f}" for i in range(n + 1))
-        dur = max(n, 1) * 0.06
-        xs = ";".join(f"{x + PX * i:.2f}" for i in range(n + 1))
-        defs.append(
-            f'<clipPath id="{cid}"><rect x="{x}" y="{y - 15}" width="{PX * n + 4:.2f}" height="22">'
-            f'<set attributeName="width" to="0" begin="0s" fill="freeze"/>'
-            f'<animate attributeName="width" values="{vals}" calcMode="discrete" begin="{delay:.2f}s" '
-            f'dur="{dur:.2f}s" fill="freeze"/></rect></clipPath>'
+        k = clip_id[0]
+        enter = start + dur + ENTER
+        kf.append(
+            f"@keyframes mv{k}{{to{{transform:translateX({PX * n:.2f}px)}}}}"
+            f"@keyframes cv{k}{{0%,99%{{opacity:1}}100%{{opacity:0}}}}"
         )
-        out.append(f'<text x="{x}" y="{y}" fill="{FG}" clip-path="url(#{cid})" xml:space="preserve">{esc(s)}</text>')
-        # the cursor shows up with its prompt, waits, moves one char at a time, then goes on enter
         out.append(
-            f'<rect x="{x}" y="{y - 14}" width="2.4" height="19" rx="1" fill="{PINK}" opacity="0" class="typing">'
-            f'<set attributeName="opacity" to="1" begin="{appear:.2f}s" fill="freeze"/>'
-            f'<animate attributeName="x" values="{xs}" calcMode="discrete" begin="{delay:.2f}s" '
-            f'dur="{dur:.2f}s" fill="freeze"/>'
-            f'<set attributeName="opacity" to="0" begin="{delay + dur + ENTER:.2f}s" fill="freeze"/></rect>'
+            f'<rect x="{x}" y="{y - 14}" width="2.4" height="19" rx="1" fill="{PINK}" class="typing" '
+            f'style="opacity:0;animation:mv{k} {dur:.2f}s steps({max(n, 1)},start) {start:.2f}s forwards,'
+            f'cv{k} {enter - appear:.2f}s linear {appear:.2f}s forwards"/>'
         )
         return dur
 
@@ -413,6 +419,7 @@ def build_svg():
         + "@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}"
         + "@media (prefers-reduced-motion:reduce){.l{opacity:1;animation:none}.cur{opacity:1;animation:none}"
         + ".typing{display:none}}"
+        + "".join(kf)
     )
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" '
