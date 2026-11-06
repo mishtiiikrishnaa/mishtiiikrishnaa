@@ -2,7 +2,7 @@ name: refresh
 
 on:
   schedule:
-    - cron: "19 * * * *" # every hour at :17 (off the :00 stampede, so runs are less likely to be delayed)
+    - cron: "49 * * * *" # every hour at :17 (off the :00 stampede, so runs are less likely to be delayed)
   workflow_dispatch:
   push:
     branches: [main]
